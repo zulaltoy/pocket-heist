@@ -1,0 +1,32 @@
+@reference "../../app/globals.css";
+
+.form {
+  @apply flex flex-col gap-4;
+}
+.field {
+  @apply flex flex-col gap-1;
+}
+.field label {
+  @apply text-sm font-medium text-heading;
+}
+.input {
+  @apply w-full rounded-md border border-lighter bg-light px-3 py-2 text-body focus:outline-none focus:border-primary;
+}
+.passwordField {
+  @apply relative flex items-center;
+}
+.passwordField input {
+  @apply pr-10;
+}
+.toggleButton {
+  @apply absolute right-2 flex items-center justify-center text-body hover:text-heading transition-colors;
+}
+.submitButton {
+  @apply w-full mt-2;
+}
+.switchRow {
+  @apply text-center text-sm mt-4;
+}
+.switchLink {
+  @apply text-primary hover:text-secondary underline-offset-2 hover:underline;
+}
