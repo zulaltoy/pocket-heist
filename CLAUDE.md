@@ -42,3 +42,7 @@ Non-trivial features go through a spec-then-plan process before implementation, 
 1. `/spec` turns a short idea into a feature spec at `_specs/<feature-slug>.md` (using `_specs/template.md`) and creates a `claude/feature/<feature-slug>` branch.
 2. Plan mode turns an approved spec into an implementation plan at `_plans/<feature-slug>.md`.
 3. Implementation happens on the feature branch, following that plan.
+
+## Checking Documentation
+
+- **important:** when implementing any lib/framework-specific features, ALWAYS check the approrpiate lib/framework doc using the Context7 MCP serverbefore writing any code.

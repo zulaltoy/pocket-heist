@@ -1,6 +1,6 @@
 ---
 description: Create a feature spec file and branch from a short idea
-argument-hint: Short feature description
+argument-hint: "[Short feature description, optionally: 'figma: <component-link>']"
 allowed-tools: Read, Write, Glob, Bash(git switch:*)
 ---
 
@@ -46,7 +46,32 @@ From `$ARGUMENTS`, extract:
    - Format: `claude/feature/<feature_slug>`  
    - Example: `claude/feature/card-component`.
 
+4. `figma_hint` (optional)  
+   - If `$ARGUMENTS` contains the substring `figma:`  
+   - Then the text after `figma:` is the figma component link.  
+   - Trim whitespace.  
+   - Example input:  
+     - `/spec Card component, figma: https://www.figma.com/design/some-link`  
+     - `figma_hint` becomes `https://www.figma.com/design/some-link`.
+
 If you cannot infer a sensible `feature_title` and `feature_slug`, ask the user to clarify instead of guessing.
+
+## Step 2.5 Pull Figma context when needed
+
+If `figma_hint` is present and Figma MCP tools are available:
+
+1. Use the Figma MCP tools to locate the component, layer or frame.  
+2. Extract only information that is useful for implementation, such as:  
+   - Dimensions and layout (grid, spacing, alignment)  
+   - Key typography tokens (font family, size, weight)  
+   - Color tokens and semantic usage (primary, surface, border, error etc.)  
+   - Border radius, shadows, and any notable visual detail
+   - Icons, buttons, links or other UI elements
+3. Summarise this as 3 to 8 concise bullet points and also leave a link to the figma component for future lookups. 
+4. If lookup fails or the tools are not available, record a note like:  
+   - `"Design reference could not be retrieved. See Figma manually for details."`
+
+Always summarise into human friendly notes.
 
 ## Step 3. Switch to a new Git branch
 
