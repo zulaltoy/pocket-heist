@@ -1,0 +1,5 @@
+@reference "../../app/globals.css";
+
+.logoutButton {
+  @apply inline-flex items-center gap-1.5 active:bg-secondary;
+}
