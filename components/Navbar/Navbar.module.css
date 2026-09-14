@@ -12,6 +12,10 @@
   @apply font-bold text-xl;
 }
 
+.siteNav ul {
+  @apply flex items-center gap-2;
+}
+
 svg.logo {
   display: inline-block;
 }
