@@ -2,7 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { generateCodename } from "@/lib/codename";
 import styles from "./AuthForm.module.css";
 
 interface AuthFormProps {
@@ -26,18 +31,68 @@ const CONFIG = {
   },
 };
 
+function getSignupErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code;
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "An account with this email already exists.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/weak-password":
+      return "Password is too weak. Please use at least 6 characters.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
   const { submitLabel, logTag, switchPrompt, switchLinkText, switchHref } =
     CONFIG[mode];
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    console.log(logTag, {
-      email: formData.get("email"),
-      password: formData.get("password"),
-    });
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    if (mode === "login") {
+      console.log(logTag, { email, password });
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      const credential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+      const codename = generateCodename();
+
+      try {
+        await updateProfile(credential.user, { displayName: codename });
+        await setDoc(doc(db, "users", credential.user.uid), {
+          codename,
+          id: credential.user.uid,
+        });
+      } catch (postSignupError) {
+        console.error(
+          "Failed to finish setting up new account:",
+          postSignupError,
+        );
+      }
+
+      router.push("/heists");
+    } catch (error) {
+      setErrorMessage(getSignupErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -73,8 +128,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
             </button>
           </div>
         </div>
-        <button type="submit" className={`btn ${styles.submitButton}`}>
-          {submitLabel}
+        {errorMessage && (
+          <p className={styles.errorMessage} role="alert">
+            {errorMessage}
+          </p>
+        )}
+        <button
+          type="submit"
+          className={`btn ${styles.submitButton}`}
+          disabled={mode === "signup" && isSubmitting}
+        >
+          {mode === "signup" && isSubmitting ? "Signing Up..." : submitLabel}
         </button>
       </form>
       <p className={styles.switchRow}>
