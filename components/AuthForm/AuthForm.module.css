@@ -22,7 +22,10 @@
   @apply absolute right-2 flex items-center justify-center text-body hover:text-heading transition-colors;
 }
 .submitButton {
-  @apply w-full mt-2;
+  @apply w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.errorMessage {
+  @apply text-sm text-error mt-2;
 }
 .switchRow {
   @apply text-center text-sm mt-4;

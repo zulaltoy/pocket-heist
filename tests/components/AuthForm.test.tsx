@@ -1,11 +1,38 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 // component imports
 import AuthForm from "@/components/AuthForm";
 
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+vi.mock("firebase/auth", () => ({
+  createUserWithEmailAndPassword: vi.fn(),
+  updateProfile: vi.fn(),
+}));
+vi.mock("firebase/firestore", () => ({
+  doc: vi.fn((_db, collectionName, id) => ({ collectionName, id })),
+  setDoc: vi.fn(),
+}));
+vi.mock("@/lib/firebase", () => ({ auth: {}, db: {} }));
+vi.mock("@/lib/codename", () => ({
+  generateCodename: () => "SneakyInternStapler",
+}));
+
 describe("AuthForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(updateProfile).mockResolvedValue(undefined);
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -67,8 +94,10 @@ describe("AuthForm", () => {
     });
   });
 
-  it("logs the entered values on signup submit", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  it("creates a Firebase account, sets a codename, and redirects on successful signup", async () => {
+    vi.mocked(createUserWithEmailAndPassword).mockResolvedValue({
+      user: { uid: "abc123" },
+    } as never);
     const user = userEvent.setup();
     render(<AuthForm mode="signup" />);
 
@@ -76,10 +105,98 @@ describe("AuthForm", () => {
     await user.type(screen.getByLabelText("Password"), "hunter2");
     await user.click(screen.getByRole("button", { name: "Sign Up" }));
 
-    expect(logSpy).toHaveBeenCalledWith("Signup form submitted:", {
-      email: "new@example.com",
-      password: "hunter2",
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/heists"));
+
+    expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+      {},
+      "new@example.com",
+      "hunter2",
+    );
+    expect(updateProfile).toHaveBeenCalledWith(
+      { uid: "abc123" },
+      { displayName: "SneakyInternStapler" },
+    );
+    expect(doc).toHaveBeenCalledWith({}, "users", "abc123");
+    expect(setDoc).toHaveBeenCalledWith(
+      { collectionName: "users", id: "abc123" },
+      { codename: "SneakyInternStapler", id: "abc123" },
+    );
+  });
+
+  it("shows an error and does not redirect when the email is already in use", async () => {
+    vi.mocked(createUserWithEmailAndPassword).mockRejectedValue({
+      code: "auth/email-already-in-use",
     });
+    const user = userEvent.setup();
+    render(<AuthForm mode="signup" />);
+
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "hunter2");
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    expect(
+      await screen.findByText("An account with this email already exists."),
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  it("shows a weak-password-specific error message", async () => {
+    vi.mocked(createUserWithEmailAndPassword).mockRejectedValue({
+      code: "auth/weak-password",
+    });
+    const user = userEvent.setup();
+    render(<AuthForm mode="signup" />);
+
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "a");
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    expect(
+      await screen.findByText(
+        "Password is too weak. Please use at least 6 characters.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("disables the submit button and shows a loading label while signing up", async () => {
+    let resolveCreate!: (value: { user: { uid: string } }) => void;
+    vi.mocked(createUserWithEmailAndPassword).mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }) as never,
+    );
+    const user = userEvent.setup();
+    render(<AuthForm mode="signup" />);
+
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "hunter2");
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    const submitButton = screen.getByRole("button", { name: "Signing Up..." });
+    expect(submitButton).toBeDisabled();
+
+    resolveCreate({ user: { uid: "abc123" } });
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/heists"));
+  });
+
+  it("still redirects and logs an error if updating the profile or Firestore doc fails after account creation", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(createUserWithEmailAndPassword).mockResolvedValue({
+      user: { uid: "abc123" },
+    } as never);
+    vi.mocked(updateProfile).mockRejectedValue(new Error("network error"));
+    const user = userEvent.setup();
+    render(<AuthForm mode="signup" />);
+
+    await user.type(screen.getByLabelText("Email"), "new@example.com");
+    await user.type(screen.getByLabelText("Password"), "hunter2");
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/heists"));
+    expect(errorSpy).toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("links to the signup form from login", () => {
