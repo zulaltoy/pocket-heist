@@ -27,6 +27,9 @@
 .errorMessage {
   @apply text-sm text-error mt-2;
 }
+.successMessage {
+  @apply text-sm text-success mt-2;
+}
 .switchRow {
   @apply text-center text-sm mt-4;
 }

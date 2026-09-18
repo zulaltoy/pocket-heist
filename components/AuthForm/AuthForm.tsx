@@ -4,7 +4,11 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { generateCodename } from "@/lib/codename";
@@ -17,14 +21,14 @@ interface AuthFormProps {
 const CONFIG = {
   login: {
     submitLabel: "Log In",
-    logTag: "Login form submitted:",
+    submittingLabel: "Logging In...",
     switchPrompt: "Need an account?",
     switchLinkText: "Sign up",
     switchHref: "/signup",
   },
   signup: {
     submitLabel: "Sign Up",
-    logTag: "Signup form submitted:",
+    submittingLabel: "Signing Up...",
     switchPrompt: "Already have an account?",
     switchLinkText: "Log in",
     switchHref: "/login",
@@ -45,13 +49,31 @@ function getSignupErrorMessage(error: unknown): string {
   }
 }
 
+function getSigninErrorMessage(error: unknown): string {
+  const code = (error as { code?: string })?.code;
+  switch (code) {
+    case "auth/invalid-credential":
+      return "Incorrect email or password. Please try again.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
-  const { submitLabel, logTag, switchPrompt, switchLinkText, switchHref } =
-    CONFIG[mode];
+  const {
+    submitLabel,
+    submittingLabel,
+    switchPrompt,
+    switchLinkText,
+    switchHref,
+  } = CONFIG[mode];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,7 +82,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
     const password = formData.get("password") as string;
 
     if (mode === "login") {
-      console.log(logTag, { email, password });
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      setIsSubmitting(true);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        setSuccessMessage("Login successful.");
+      } catch (error) {
+        setErrorMessage(getSigninErrorMessage(error));
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -133,12 +165,17 @@ export default function AuthForm({ mode }: AuthFormProps) {
             {errorMessage}
           </p>
         )}
+        {successMessage && (
+          <p className={styles.successMessage} role="status">
+            {successMessage}
+          </p>
+        )}
         <button
           type="submit"
           className={`btn ${styles.submitButton}`}
-          disabled={mode === "signup" && isSubmitting}
+          disabled={isSubmitting}
         >
-          {mode === "signup" && isSubmitting ? "Signing Up..." : submitLabel}
+          {isSubmitting ? submittingLabel : submitLabel}
         </button>
       </form>
       <p className={styles.switchRow}>
