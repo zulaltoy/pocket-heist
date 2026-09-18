@@ -2,7 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 
 // component imports
@@ -15,6 +19,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: vi.fn(),
+  signInWithEmailAndPassword: vi.fn(),
   updateProfile: vi.fn(),
 }));
 vi.mock("firebase/firestore", () => ({
@@ -79,8 +84,10 @@ describe("AuthForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("logs the entered values on login submit", async () => {
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  it("shows a success message and does not redirect on successful login", async () => {
+    vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+      user: { uid: "abc123" },
+    } as never);
     const user = userEvent.setup();
     render(<AuthForm mode="login" />);
 
@@ -88,10 +95,76 @@ describe("AuthForm", () => {
     await user.type(screen.getByLabelText("Password"), "hunter2");
     await user.click(screen.getByRole("button", { name: "Log In" }));
 
-    expect(logSpy).toHaveBeenCalledWith("Login form submitted:", {
-      email: "user@example.com",
-      password: "hunter2",
+    expect(await screen.findByText("Login successful.")).toBeInTheDocument();
+    expect(signInWithEmailAndPassword).toHaveBeenCalledWith(
+      {},
+      "user@example.com",
+      "hunter2",
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and no success message for invalid login credentials", async () => {
+    vi.mocked(signInWithEmailAndPassword).mockRejectedValue({
+      code: "auth/invalid-credential",
     });
+    const user = userEvent.setup();
+    render(<AuthForm mode="login" />);
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrongpass");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    expect(
+      await screen.findByText("Incorrect email or password. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Login successful.")).not.toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("disables the submit button and shows a loading label while logging in", async () => {
+    let resolveSignIn!: (value: { user: { uid: string } }) => void;
+    vi.mocked(signInWithEmailAndPassword).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSignIn = resolve;
+      }) as never,
+    );
+    const user = userEvent.setup();
+    render(<AuthForm mode="login" />);
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Password"), "hunter2");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    const submitButton = screen.getByRole("button", { name: "Logging In..." });
+    expect(submitButton).toBeDisabled();
+
+    resolveSignIn({ user: { uid: "abc123" } });
+    await waitFor(() => expect(submitButton).not.toBeDisabled());
+  });
+
+  it("clears the previous error message when resubmitting the login form", async () => {
+    vi.mocked(signInWithEmailAndPassword)
+      .mockRejectedValueOnce({ code: "auth/invalid-credential" })
+      .mockResolvedValueOnce({ user: { uid: "abc123" } } as never);
+    const user = userEvent.setup();
+    render(<AuthForm mode="login" />);
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrongpass");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+    expect(
+      await screen.findByText("Incorrect email or password. Please try again."),
+    ).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Password"));
+    await user.type(screen.getByLabelText("Password"), "hunter2");
+    await user.click(screen.getByRole("button", { name: "Log In" }));
+
+    expect(await screen.findByText("Login successful.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Incorrect email or password. Please try again."),
+    ).not.toBeInTheDocument();
   });
 
   it("creates a Firebase account, sets a codename, and redirects on successful signup", async () => {
