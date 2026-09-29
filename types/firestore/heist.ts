@@ -29,7 +29,7 @@ export interface CreateHeistInput {
   createdByCodename: string;
   assignedTo: string;
   assignedToCodename: string;
-  deadline: Date; // e.g. new Date(Date.now() + 48 * 60 * 60 * 1000)
+  deadline: Date; // automatically set to 48 hours after createdAt
   finalStatus: null;
 }
 
