@@ -1,0 +1,29 @@
+@reference "../../app/globals.css";
+
+.form {
+  @apply flex flex-col gap-4 mt-6;
+}
+.field {
+  @apply flex flex-col gap-1;
+}
+.field label {
+  @apply text-sm font-medium text-heading;
+}
+.input {
+  @apply w-full rounded-md border border-lighter bg-light px-3 py-2 text-body focus:outline-none focus:border-primary;
+}
+.textarea {
+  @apply min-h-32 resize-y;
+}
+.select {
+  @apply cursor-pointer;
+}
+.submitButton {
+  @apply w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.errorMessage {
+  @apply text-sm text-error mt-2;
+}
+.statusMessage {
+  @apply text-center text-sm mt-6;
+}
