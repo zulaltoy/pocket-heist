@@ -1,0 +1,29 @@
+@reference "../../app/globals.css";
+
+.card {
+  @apply bg-light border border-lighter rounded-lg p-6 w-full mt-6;
+}
+.title {
+  @apply text-2xl font-bold;
+}
+.meta {
+  @apply grid grid-cols-1 sm:grid-cols-3 gap-4 my-6;
+}
+.meta dt {
+  @apply text-xs uppercase tracking-wide;
+}
+.meta dd {
+  @apply text-heading font-semibold mt-1;
+}
+.meta dd.timeLeft {
+  @apply text-primary tabular-nums;
+}
+.sectionHeading {
+  @apply text-sm font-medium mb-2;
+}
+.description {
+  @apply whitespace-pre-line;
+}
+.statusMessage {
+  @apply text-center text-sm mt-6;
+}
