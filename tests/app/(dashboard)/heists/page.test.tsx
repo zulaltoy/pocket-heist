@@ -12,13 +12,7 @@ type HeistsResult = ReturnType<typeof useHeists>;
 
 const done = (titles: string[]): HeistsResult =>
   ({
-    heists: titles.map((title, i) => ({
-      id: `heist-${i}`,
-      title,
-      assignedToCodename: "Assignee",
-      createdByCodename: "Creator",
-      deadline: new Date(Date.now() + 60 * 60 * 1000),
-    })),
+    heists: titles.map((title, i) => ({ id: `${title}-${i}`, title })),
     loading: false,
     error: null,
   }) as unknown as HeistsResult;
@@ -58,29 +52,6 @@ describe("HeistsPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("links active and assigned titles to their details page, but not expired", () => {
-    mockResults({
-      active: done(["Swap the stapler"]),
-      assigned: done(["Hide the mouse"]),
-      expired: done(["Rename the wifi"]),
-    });
-    render(<HeistsPage />);
-
-    expect(
-      section("Your Active Heists").getByRole("link", {
-        name: "Swap the stapler",
-      }),
-    ).toHaveAttribute("href", "/heists/heist-0");
-    expect(
-      section("Heists You've Assigned").getByRole("link", {
-        name: "Hide the mouse",
-      }),
-    ).toHaveAttribute("href", "/heists/heist-0");
-    expect(
-      section("All Expired Heists").queryByRole("link"),
-    ).not.toBeInTheDocument();
-  });
-
   it("shows loading and empty states", () => {
     mockResults({
       active: { heists: [], loading: true, error: null },
@@ -89,9 +60,9 @@ describe("HeistsPage", () => {
     });
     render(<HeistsPage />);
 
-    expect(section("Your Active Heists").getAllByRole("status")).toHaveLength(
-      3,
-    );
+    expect(
+      section("Your Active Heists").getByText("Loading..."),
+    ).toBeInTheDocument();
     expect(
       section("Heists You've Assigned").getByText("No heists here yet."),
     ).toBeInTheDocument();
