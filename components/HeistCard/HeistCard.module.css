@@ -1,0 +1,38 @@
+@reference "../../app/globals.css";
+
+.card {
+  @apply flex flex-col gap-3 h-full rounded-[10px] border border-gray-800 bg-lighter p-5;
+}
+
+.header {
+  @apply flex items-start justify-between gap-2;
+}
+
+.title {
+  @apply text-base leading-6 font-normal tracking-tight text-heading break-words;
+}
+
+.title a:hover {
+  @apply text-primary transition-colors;
+}
+
+.clock {
+  @apply mt-1 shrink-0 text-primary;
+}
+
+.meta {
+  @apply flex flex-col gap-2 text-sm leading-5 text-body;
+}
+
+.meta li {
+  @apply flex items-center gap-2;
+}
+
+.to,
+.timeLeft {
+  @apply text-primary;
+}
+
+.by {
+  @apply text-secondary;
+}
